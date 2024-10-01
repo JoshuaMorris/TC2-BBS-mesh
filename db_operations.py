@@ -13,17 +13,23 @@ from utils import (
     send_mail_to_bbs_nodes, send_message, send_channel_to_bbs_nodes
 )
 
+logger = logging.getLogger(__name__)
 
 thread_local = threading.local()
 
 def get_db_connection():
-    if not hasattr(thread_local, 'connection'):
-        thread_local.connection = sqlite3.connect('bulletins.db')
-    return thread_local.connection
+	if not hasattr(thread_local, 'connection'):
+		try:
+			thread_local.connection = sqlite3.connect('bulletins.db')
+		except sqlite3.Error as e:
+			logger.error(f"Database connection error: {e}")
+			raise
+	return thread_local.connection
 
 def initialize_database():
-    conn = get_db_connection()
-    c = conn.cursor()
+	try:
+		conn = get_db_connection()
+		c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS bulletins (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     board TEXT NOT NULL,
@@ -49,7 +55,10 @@ def initialize_database():
                     url TEXT NOT NULL
                 );''')
     conn.commit()
-    print("Database schema initialized.")
+logger.info("Database schema initialized.")
+except sqlite3.Error as e:
+logger.error(f"Error initializing the database: {e}")
+raise
 
 def add_channel(name, url, bbs_nodes=None, interface=None):
     conn = get_db_connection()
